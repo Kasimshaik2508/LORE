@@ -162,6 +162,14 @@ def test_classify(text, intent):
     assert classify(text)[0] == intent
 
 
+def test_asi_one_mentions_are_ignored():
+    addr = "@agent1qghefamymd3qjgpty3q0dny6tsw56n66rmaallz0l5zvhftu9ndfxjxnrur"
+    assert classify(f"{addr} status") == ("status", {})
+    assert classify(f"{addr} LORE engineering memory")[0] == "help"
+    assert classify(f"{addr} review: add a cache")[1]["change"] == "add a cache"
+    assert classify(f"{addr} Why postgres?") == ("ask", {"question": "Why postgres?"})
+
+
 def test_route_end_to_end(lore):
     call = local_dispatch(lore)
     out = asyncio.run(route("review: add redis cache to verify_token", "u", call, lore))

@@ -19,10 +19,15 @@ Dispatch = Callable[[str, object], Awaitable[object]]
 MEM_ID = re.compile(r"\bMEM-\d{3,}\b", re.I)
 
 
+MENTION = re.compile(r"(?:^|\s)@[\w.-]+")
+
+
 def classify(text: str) -> tuple[str, dict]:
-    t = text.strip()
+    # ASI:One includes "@agent1q…" mentions in the message text.
+    t = MENTION.sub(" ", text).strip()
     low = t.lower()
-    if not t or low in {"help", "hi", "hello", "hey", "start", "?"}:
+    if not t or low in {"help", "hi", "hello", "hey", "start", "?"} \
+            or re.fullmatch(r"(lore)?\s*(engineering memory|agent)?[.!?]*", low):
         return "help", {}
     if low in {"status", "stats"}:
         return "status", {}

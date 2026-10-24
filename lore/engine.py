@@ -222,7 +222,7 @@ class Lore:
     def _template_answer(self, question: str, ev: list[dict], imp: dict | None) -> str:
         if not ev and not imp:
             return ("LORE has no recorded memory about this. That means the history is unknown, "
-                    "not that the change is safe.")
+                    "not that the change is safe. Type `help` to see what I can do.")
         lines = []
         if ev:
             lines.append("**What the project history says (verified from sources):**")
