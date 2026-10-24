@@ -28,8 +28,11 @@ def make_lore_agent(lore: Lore, specialists: dict[str, str], port: int = 8000,
     """specialists maps kind ("ask", "review", ...) to that agent's address."""
     if mailbox is None:
         mailbox = os.getenv("LORE_MAILBOX", "1") == "1"
+    # The agent re-sends its profile to Agentverse when it connects, so the name and
+    # picture shown there and in ASI:One come from here, not from edits on the website.
     agent = Agent(
-        name="lore",
+        name=os.getenv("LORE_DISPLAY_NAME", "lore"),
+        avatar_url=os.getenv("LORE_AVATAR_URL") or None,
         seed=seed_for("lore"),
         port=port,
         mailbox=mailbox,
