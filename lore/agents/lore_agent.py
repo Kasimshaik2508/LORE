@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from uagents import Agent, Context, Protocol
+from uagents.resolver import Resolver
 from uagents_core.contrib.protocols.chat import (ChatAcknowledgement, ChatMessage, EndSessionContent,
                                                  StartSessionContent, TextContent, chat_protocol_spec)
 
@@ -23,7 +24,7 @@ TIMEOUTS = {"ask": 90, "review": 120, "onboard": 60, "ingest": 300}
 
 
 def make_lore_agent(lore: Lore, specialists: dict[str, str], port: int = 8000,
-                    mailbox: bool | None = None) -> Agent:
+                    mailbox: bool | None = None, resolve: Resolver | None = None) -> Agent:
     """specialists maps kind ("ask", "review", ...) to that agent's address."""
     if mailbox is None:
         mailbox = os.getenv("LORE_MAILBOX", "1") == "1"
@@ -37,6 +38,7 @@ def make_lore_agent(lore: Lore, specialists: dict[str, str], port: int = 8000,
                     "code changes against them, with sources.",
         readme_path=str(README) if README.exists() else None,
         publish_agent_details=True,
+        resolve=resolve,
     )
     chat = Protocol(spec=chat_protocol_spec)
 

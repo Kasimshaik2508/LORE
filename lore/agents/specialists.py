@@ -7,6 +7,8 @@ import secrets
 from pathlib import Path
 
 from uagents import Agent, Context, Protocol
+from uagents.resolver import Resolver
+from uagents_core.identity import Identity
 
 from ..engine import Lore
 from ..router import HANDLERS
@@ -38,10 +40,14 @@ def seed_for(name: str) -> str:
     return f"{base}/{name}"
 
 
-def make_specialist(kind: str, lore: Lore, port: int | None = None) -> Agent:
+def address_of(name: str) -> str:
+    return Identity.from_seed(seed_for(name), 0).address
+
+
+def make_specialist(kind: str, lore: Lore, port: int | None = None, resolve: Resolver | None = None) -> Agent:
     name, req_t, resp_t, description = SPECS[kind]
     agent = Agent(name=name, seed=seed_for(name), port=port, description=description,
-                  publish_agent_details=False)
+                  publish_agent_details=False, resolve=resolve)
     proto = Protocol(name=name, version="0.1.0")
     handler = HANDLERS[kind]
 

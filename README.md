@@ -42,7 +42,7 @@ flowchart LR
 ```
 
 - **Chat Protocol** (`uagents_core.contrib.protocols.chat`) on the public agent, with the manifest published so ASI:One can discover it.
-- **Agent-to-agent orchestration**: the router sends typed requests to the specialists with `ctx.send_and_receive`. They run in one `Bureau`, and only `lore` uses an Agentverse mailbox.
+- **Agent-to-agent orchestration**: the router sends typed requests to the specialists with `ctx.send_and_receive`. `lore` runs alone on port 8000 with an Agentverse mailbox, so the inspector can connect to it. The specialists share a `Bureau` on port 8001, and a local-first resolver keeps their traffic on localhost. Both run from one command.
 - **Knowledge graph** nodes: memories, sources (MRs, incidents, commits, docs), files, services and people. Edges include `SUPPORTED_BY`, `AFFECTS`, `CAUSED_BY`, `SUPERSEDES`, `MODIFIES`, `PART_OF`, `DEPENDS_ON`, `AUTHORED`, `REVIEWED` and `REFERENCES`. Edges are only added when a source states the relationship, never because two terms appear together.
 - **ASI:One LLM** (`asi1`, OpenAI-compatible) is optional. It extracts memories from free-text PRs, writes answers, and judges conflicts. Without a key, LORE falls back to deterministic extraction from ADR-style markers (`Decision:`, `Rule:`, `Why:`, `Affects:`, `Supersedes:`, `Caused by:`) and rule-based conflict checks, so the demo and tests always run.
 
