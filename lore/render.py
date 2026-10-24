@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
-HELP = """**LORE — Living Organizational Record Engine**
-I remember why your team made its engineering decisions, and I check new work against them.
+HELP = """**Hi, I'm LORE (Living Organizational Record Engine).**
+I remember *why* a software team made its engineering decisions, and I warn you before a new change repeats an old mistake. Every answer cites the pull request or incident it came from.
 
-Try:
-- `Why did we choose PostgreSQL instead of MongoDB?`
-- `Can I replace our payment service's database?`
-- `review: add a 5 minute Redis cache to verify_token in auth_service/verify.py`
-- `review: ... override: <why this exception is OK>`
-- `onboard` or `onboard auth`
-- `show MEM-007` · `challenge MEM-007: <evidence>` · `reaffirm MEM-007: <reason>`
-- `remember: <decision> because <reason> affects <component, ...>`
-- `import github <owner/repo>` · `status`"""
+I've already learned the history of **Payflow**, a sample payments company: its pull requests, review comments, incidents and docs. Just ask in plain English, for example:
+
+- *Why did the team choose PostgreSQL instead of MongoDB?*
+- *What would break if I replace the payments database?*
+- *Is it safe to add a Redis cache to the login token check?* ← I'll block this one, and show why
+- *I want to store refund amounts as floats*
+- *What incidents has the team had?*
+- *What rules should I know?*
+- *I'm new here, give me an overview*
+- *Who owns the authentication service?*
+
+**How I work:** five Fetch.ai agents. I route your message to an extractor, a retriever, a reviewer or an onboarding agent, and they share one memory: a knowledge graph of decisions, incidents, files, services and people.
+
+Power commands: `review: <change>` · `review: <change> override: <reason>` · `show MEM-007` · `challenge MEM-007: <evidence>` · `remember: <decision> because <reason>` · `import github owner/repo` · `status`"""
 
 ICON = {"conflict": "⛔", "possible_conflict": "⚠️", "overridden": "📝", "related": "🔎", "compliant": "✅"}
 STATUS = {"BLOCK": "⛔ **BLOCK — conflicts with recorded decisions**",
@@ -92,3 +97,37 @@ def stats(s: dict) -> str:
     return (f"**LORE status** — {s['sources']} sources · {s['memories']} memories "
             f"({s['active']} active, {s['superseded']} superseded, {s['disputed']} disputed) · "
             f"graph {s['nodes']} nodes / {s['edges']} edges · LLM: {s['llm']}")
+
+
+def impact(imp: dict) -> str:
+    lines = [f"**What depends on `{imp['target']}` (from the dependency graph):**"]
+    if imp["dependents"]:
+        lines += [f"- `{svc}` ({' ← '.join(path)})" for svc, path in imp["dependents"].items()]
+    else:
+        lines.append("- No recorded dependents.")
+    if imp["governing_memories"]:
+        lines.append("- Memories governing it or its dependents: "
+                     + ", ".join(f"[{x}]" for x in imp["governing_memories"]))
+    return "\n".join(lines)
+
+
+def rules(r: dict) -> str:
+    lines = ["**Rules the team has agreed on**"]
+    lines += [f"- **[{m['id']}]** {m['statement']} _(from {m['source_id']})_" for m in r["rules"]] or ["- None recorded."]
+    lines.append("\n**Architecture decisions**")
+    for m in r["decisions"]:
+        tag = "" if m["status"] == "active" else f" _({m['status']})_"
+        lines.append(f"- **[{m['id']}]** {m['statement']}{tag} _(from {m['source_id']})_")
+    lines.append("\nAsk *“why”* about any of them, or say `show MEM-007` for the full evidence.")
+    return "\n".join(lines)
+
+
+def incidents(r: dict) -> str:
+    if not r["incidents"]:
+        return "No incidents are recorded."
+    lines = ["**Incidents the team has had, and what they taught it**"]
+    for m in r["incidents"]:
+        lines.append(f"- **{m['source_id']} ({m['timestamp'] or 'undated'}): {m['title']}**  \n"
+                     f"  Root cause: {m['statement']}")
+    lines.append("\nAsk *“what rule came out of INC-11?”* or *“why can’t we cache auth?”* to follow one through.")
+    return "\n".join(lines)

@@ -91,7 +91,12 @@ python -m lore github fetchai/uAgents          # learn from a real repo (better 
 python -m pytest -q
 ```
 
+**4. Keep it online 24/7.** See [DEPLOY.md](DEPLOY.md): run `sh scripts/run_forever.sh` on a Mac, or deploy the `Dockerfile` to Railway or any VM.
+
 ## Demo script (for judges)
+
+You don't need any commands: LORE understands plain English. Try *"What can you do?"*, *"Is it safe to add a Redis cache to the login token check?"*, *"What incidents has the team had?"*, *"Who owns the authentication service?"* or *"I'm new here, give me an overview"*. The table below is the full guided story.
+
 
 | # | Send to LORE | What it shows |
 |---|---|---|

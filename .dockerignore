@@ -1,0 +1,10 @@
+.venv
+.git
+.env
+.claude
+__pycache__
+.pytest_cache
+data/lore.db
+data/.agent_seed
+data/agents.log
+*.db

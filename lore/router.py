@@ -21,6 +21,61 @@ MEM_ID = re.compile(r"\bMEM-\d{3,}\b", re.I)
 
 MENTION = re.compile(r"(?:^|\s)@[\w.-]+")
 
+# Plain-English phrasings, so people who don't know the commands (e.g. judges) still
+# land on the right agent. Checked after the explicit commands, before falling back to "ask".
+ABOUT = re.compile(
+    r"\b(what (can|do|could|should) (you|i) (do|ask|say|try)|who are you|what are you|what is (this|lore)"
+    r"|what (were|are) you (created|made|built|designed|meant|for)|created to do|your purpose"
+    r"|how (do|can|should) i use|how to use|how does (this|it|lore) work|introduce yourself"
+    r"|tell me about yourself|give me (an |some )?examples?|show me (a |the )?demo|what can i ask"
+    r"|your (features|capabilities)|getting started)\b")
+OVERVIEW = re.compile(
+    r"\b(overview|architecture|briefing|onboard\w*|new (developer|joiner|engineer|hire|member)"
+    r"|just joined|first (day|week)|i'?m new|new here|tell me about (the|this) (project|codebase|system|company)"
+    r"|summar(y|ise|ize) (of )?(the )?(project|codebase|system))\b")
+RULES = re.compile(
+    r"\b(list|show|see|what are|which|tell me|give me|any)\b.*\b(rules|decisions|memories|guidelines|policies)\b"
+    r"|\bwhat do you (know|remember)\b|\brules (should|must) i\b|\brules i (should|must|need)\b")
+INCIDENTS = re.compile(r"\b(incidents?|outages?|postmortems?|what went wrong|past (mistakes|problems|bugs))\b")
+STATUS = re.compile(r"\b(how many memories|your status|how much do you know|stats)\b")
+PROPOSAL = re.compile(
+    r"^(?:so |ok,? |okay,? |hey,? )?(?:is it (?:ok|okay|safe|fine|allowed|a good idea|wise) (?:to|if (?:i|we))"
+    r"|(?:can|could|should|may|shall) (?:i|we)(?: safely| just)?|would it be (?:ok|safe) to"
+    r"|i (?:want|plan|intend|need|would like|am going|'?m going|'?m planning|am planning|'?m thinking of"
+    r"|am thinking of)(?: to)?|we (?:want|plan|need|are going|'re going|'re planning)(?: to)?"
+    r"|what if (?:i|we)|let'?s|planning to|thinking (?:of|about)|propos\w* (?:to|that we)?)\s+(?P<rest>.+)",
+    re.S)
+CHANGE_VERBS = {"add", "adding", "introduce", "cache", "caching", "store", "storing", "save", "use", "using",
+                "enable", "disable", "remove", "removing", "delete", "drop", "switch", "replace", "replacing",
+                "move", "migrate", "skip", "bypass", "write", "put", "keep", "call", "swap", "change",
+                "increase", "reduce", "validate", "refactor", "rewrite", "upgrade", "deploy", "turn",
+                "merge", "split", "process", "retry", "memoize", "make", "go"}
+
+
+def _natural(t: str, low: str) -> tuple[str, dict] | None:
+    m = MEM_ID.search(t)
+    if m and re.search(r"\b(what|show|tell|explain|about|details?|why)\b", low):
+        return "show", {"id": m.group(0).upper()}
+    if ABOUT.search(low):
+        return "help", {}
+    if STATUS.search(low):
+        return "status", {}
+    p = PROPOSAL.match(low)
+    if p:
+        rest = re.sub(r"^(just|also|now|maybe|actually|go ahead and)\s+", "", p.group("rest").strip())
+        if rest.split(" ", 1)[0].strip(",.?") in CHANGE_VERBS:
+            change = t[len(t) - len(p.group("rest")):].strip().rstrip("?")
+            return "proposal", {"change": change, "question": t}
+    if INCIDENTS.search(low) and not re.search(r"\bwhy\b", low):
+        return "incidents", {}
+    if RULES.search(low):
+        return "rules", {}
+    if OVERVIEW.search(low):
+        focus = re.sub(r".*\b(about|on|for|of)\s+(the\s+)?", "", low) if re.search(r"\b(about|on|for)\b", low) else ""
+        focus = "" if re.search(r"\b(project|codebase|system|company|architecture)\b", focus) else focus
+        return "onboard", {"focus": focus.strip(" ?.!")}
+    return None
+
 
 def classify(text: str) -> tuple[str, dict]:
     # ASI:One includes "@agent1q…" mentions in the message text.
@@ -58,9 +113,9 @@ def classify(text: str) -> tuple[str, dict]:
                                 and not os.path.isdir(target)):
             return "ingest", {"source": "github", "target": target}
         return "ingest", {"source": "folder", "target": target}
-    if re.match(r"(onboard|onboarding|briefing|i'?m new|new here)\b", low):
-        focus = re.sub(r"^(onboard(ing)?|briefing|i'?m new( here)?|new here)\s*(me)?\s*(on|about|for)?\s*", "", low)
-        return "onboard", {"focus": focus.strip(" ?.")}
+    if re.fullmatch(r"(onboard(ing)?|briefing)(\s+(me\s+)?((on|about|for)\s+)?[\w\s-]{0,40})?[.?!]*", low):
+        focus = re.sub(r"^(onboard(ing)?|briefing)\s*(me)?\s*(on|about|for)?\s*", "", low)
+        return "onboard", {"focus": focus.strip(" ?.!")}
     if (re.match(r"(review|check|propose|proposal|pr|mr)\b\s*:?", low) or "diff --git" in t
             or re.search(r"^\+\+\+ ", t, re.M)):
         change = re.sub(r"^(review|check|propose|proposal|pr|mr)\b\s*(this|my)?\s*(change)?\s*:?\s*", "", t, flags=re.I)
@@ -69,6 +124,9 @@ def classify(text: str) -> tuple[str, dict]:
         if jm:
             just, change = jm.group(1).strip(), change[: jm.start()].strip()
         return "review", {"change": change, "justification": just}
+    natural = _natural(t, low)
+    if natural:
+        return natural
     return "ask", {"question": t}
 
 
@@ -109,6 +167,18 @@ async def route(text: str, actor: str, call: Dispatch, lore: Lore) -> str:
     if intent == "review":
         r: ReviewResponse = await call("review", ReviewRequest(actor=actor, **args))
         return r.report_md
+    if intent == "proposal":
+        # "Is it safe to …" / "I want to …": the reviewer judges it, the retriever adds impact.
+        rv: ReviewResponse = await call("review", ReviewRequest(change=args["change"], actor=actor))
+        ak: AskResponse = await call("ask", AskRequest(question=args["question"]))
+        out = rv.report_md
+        if ak.impact_json:
+            out += "\n\n" + render.impact(json.loads(ak.impact_json))
+        return out
+    if intent == "rules":
+        return render.rules(lore.onboard())
+    if intent == "incidents":
+        return render.incidents(lore.onboard())
     r: AskResponse = await call("ask", AskRequest(**args))
     return r.answer_md
 

@@ -6,3 +6,4 @@ __pycache__/
 data/lore.db
 data/.agent_seed
 *.db
+data/agents.log

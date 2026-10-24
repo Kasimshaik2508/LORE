@@ -176,3 +176,37 @@ def test_route_end_to_end(lore):
     assert "BLOCK" in out and "MR-42" in out
     out = asyncio.run(route("review: add redis cache to verify_token override: test env", "u", call, lore))
     assert "overridden" in out
+
+
+# plain-English questions (judges don't know the commands) ----------------
+
+@pytest.mark.parametrize("text,intent", [
+    ("Tell me what you were created to do", "help"),
+    ("What can you do?", "help"),
+    ("How does this work?", "help"),
+    ("Is it safe to add a Redis cache to the login token check?", "proposal"),
+    ("I want to store refund amounts as floats", "proposal"),
+    ("Can I replace our payment service's database?", "proposal"),
+    ("What incidents has the team had?", "incidents"),
+    ("What rules should I know?", "rules"),
+    ("can I see the rules", "rules"),
+    ("I'm new here, give me an overview", "onboard"),
+    ("what is MEM-007", "show"),
+    ("Why did the team choose PostgreSQL instead of MongoDB?", "ask"),
+    ("Who owns the authentication service?", "ask"),
+])
+def test_plain_english(text, intent):
+    assert classify(text)[0] == intent
+
+
+def test_plain_english_proposal_is_blocked_with_impact(lore):
+    call = local_dispatch(lore)
+    out = asyncio.run(route("Is it safe to add a Redis cache to the login token check?", "judge", call, lore))
+    assert "BLOCK" in out and "MR-42" in out
+    out = asyncio.run(route("Can I replace our payment service's database?", "judge", call, lore))
+    assert "reporting_service" in out
+
+
+def test_owner_and_incident_questions(lore):
+    assert "owned by lee" in lore.ask("Who owns the authentication service?")["answer"]
+    assert lore.ask("what rule came out of INC-11?")["evidence"][0]["source_id"] == "MR-42"

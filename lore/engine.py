@@ -158,7 +158,10 @@ class Lore:
 
     # -------------------------------------------------------------- retrieval
     def _doc(self, m: Memory) -> str:
-        return " ".join([m.title, m.statement, m.rationale, " ".join(m.components), m.quote])
+        # Include the source and any incident behind it, so "what came out of INC-11?" finds the rule.
+        causes = [G.label(d) for _, rel, d in G.neighborhood(self.g, f"memory:{m.id}") if rel == "CAUSED_BY"]
+        return " ".join([m.title, m.statement, m.rationale, " ".join(m.components), m.quote,
+                         m.source_id, " ".join(causes)])
 
     def search(self, query: str, k: int = 5, include_superseded: bool = True) -> list[tuple[Memory, float]]:
         mems = {m.id: m for m in self.store.memories()
@@ -217,7 +220,21 @@ class Lore:
             mode = f"asi1:{llm.MODEL}" if answer else "offline"
         if answer is None:
             answer = self._template_answer(question, ev, imp)
+        owners = self._owners(question)
+        if owners:
+            answer = owners + "\n\n" + answer
         return {"question": question, "answer": answer, "evidence": ev, "impact": imp, "mode": mode}
+
+    def _owners(self, question: str) -> str:
+        """'Who owns / who is responsible for X?' is answered from the service catalogue."""
+        if not re.search(r"\bwho\b|\bowner|\bresponsible|\bcontact\b", question, re.I):
+            return ""
+        lines = []
+        for nid in G.match_components(self.g, question):
+            owner = self.g.nodes[nid].get("owner")
+            if owner:
+                lines.append(f"**`{G.label(nid)}` is owned by {owner}** (from services.json).")
+        return "\n".join(lines)
 
     def _template_answer(self, question: str, ev: list[dict], imp: dict | None) -> str:
         if not ev and not imp:
