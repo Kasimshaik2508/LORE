@@ -1,0 +1,132 @@
+[
+  {
+    "id": "MR-12",
+    "type": "merge_request",
+    "title": "Use MongoDB for the ledger prototype",
+    "author": "dana",
+    "reviewers": ["sam"],
+    "date": "2023-03-10",
+    "url": "https://github.com/payflow-demo/payflow/pull/12",
+    "files": ["ledger_service/store.py"],
+    "body": "Bootstrapping the ledger service.\n\nDecision: Store ledger entries in MongoDB.\nWhy: The ledger schema is still changing every week and a document store lets us iterate without migrations.\nAffects: ledger_service, ledger_service/store.py",
+    "comments": [
+      {"author": "sam", "body": "Fine for the prototype. We should revisit once we need multi-document consistency."}
+    ]
+  },
+  {
+    "id": "INC-7",
+    "type": "incident",
+    "title": "Customers double-charged during ledger write failures",
+    "author": "sam",
+    "reviewers": [],
+    "date": "2024-01-18",
+    "url": "https://github.com/payflow-demo/payflow/issues/88",
+    "files": ["ledger_service/store.py"],
+    "body": "Between 14:02 and 14:40 UTC, 312 customers were charged twice.\n\nRoot cause: Debit and credit ledger entries were written as two separate MongoDB documents without a transaction. When the second write failed, the retry re-issued the charge.\nAffects: ledger_service, payments_api",
+    "comments": []
+  },
+  {
+    "id": "MR-31",
+    "type": "merge_request",
+    "title": "Migrate the ledger from MongoDB to PostgreSQL",
+    "author": "priya",
+    "reviewers": ["sam", "dana"],
+    "date": "2024-02-05",
+    "url": "https://github.com/payflow-demo/payflow/pull/31",
+    "files": ["ledger_service/store.py", "ledger_service/migrations/001_init.sql", "payments_api/db.py"],
+    "body": "Follow-up to INC-7.\n\nDecision: Use PostgreSQL (payments-db) for the ledger and all payment records.\nWhy: Debits and credits must be committed atomically in one ACID transaction; MongoDB documents were written independently and caused double charges.\nSupersedes: MR-12\nCaused by: INC-7\nAffects: ledger_service, payments_api, payments-db, ledger_service/store.py",
+    "comments": [
+      {"author": "sam", "body": "Rule: Ledger debit and credit entries must always be written in a single database transaction."}
+    ]
+  },
+  {
+    "id": "INC-11",
+    "type": "incident",
+    "title": "Revoked tokens accepted for up to 10 minutes",
+    "author": "lee",
+    "reviewers": [],
+    "date": "2024-06-02",
+    "url": "https://github.com/payflow-demo/payflow/issues/140",
+    "files": ["auth_service/verify.py"],
+    "body": "A contractor's access was revoked but their token kept working for 9 minutes.\n\nRoot cause: verify_token() results were cached in Redis with a 10 minute TTL, so revoked credentials were still treated as valid until the cache entry expired.\nAffects: authentication_service, auth_service/verify.py",
+    "comments": []
+  },
+  {
+    "id": "MR-42",
+    "type": "merge_request",
+    "title": "Remove caching from token verification (security fix)",
+    "author": "lee",
+    "reviewers": ["priya"],
+    "date": "2024-06-04",
+    "url": "https://github.com/payflow-demo/payflow/pull/42",
+    "files": ["auth_service/verify.py", "auth_service/cache.py"],
+    "body": "Security fix for INC-11.\n\nRule: Authentication responses must never be cached.\nWhy: Cached responses stay valid after credentials are revoked, which let a revoked token keep working.\nCaused by: INC-11\nAffects: authentication_service, auth_service/verify.py",
+    "comments": [
+      {"author": "priya", "body": "Approved. If latency becomes a problem, scale the auth service horizontally instead of caching."}
+    ]
+  },
+  {
+    "id": "c9f1e2a",
+    "type": "commit",
+    "title": "fix(auth): drop redis cache from verify_token (MR-42)",
+    "author": "lee",
+    "reviewers": [],
+    "date": "2024-06-04",
+    "url": "https://github.com/payflow-demo/payflow/commit/c9f1e2a",
+    "files": ["auth_service/verify.py", "auth_service/cache.py"],
+    "body": "Removes the 10 minute Redis TTL cache. Refs MR-42, INC-11.",
+    "comments": []
+  },
+  {
+    "id": "MR-57",
+    "type": "merge_request",
+    "title": "Refund calculation for partial returns",
+    "author": "dana",
+    "reviewers": ["sam"],
+    "date": "2024-09-12",
+    "url": "https://github.com/payflow-demo/payflow/pull/57",
+    "files": ["payments_api/refunds.py"],
+    "body": "Adds partial refunds.",
+    "comments": [
+      {"author": "sam", "body": "This uses float for the refund total, which rounds 0.1 + 0.2 wrong.\n\nRule: Money amounts must be stored as integer cents, never as floats.\nWhy: Floating point rounding produced refunds that were off by one cent in testing.\nAffects: payments_api, payments_api/refunds.py"}
+    ]
+  },
+  {
+    "id": "ISSUE-63",
+    "type": "issue",
+    "title": "Should we switch the public API to GraphQL?",
+    "author": "alex",
+    "reviewers": [],
+    "date": "2024-11-03",
+    "url": "https://github.com/payflow-demo/payflow/issues/63",
+    "files": [],
+    "body": "Just a thought: maybe GraphQL would make the mobile client simpler? Not proposing anything yet, curious what people think.",
+    "comments": [
+      {"author": "sam", "body": "Interesting, but no appetite for this right now."}
+    ]
+  },
+  {
+    "id": "MR-70",
+    "type": "merge_request",
+    "title": "Idempotent payment webhooks",
+    "author": "priya",
+    "reviewers": ["lee"],
+    "date": "2025-03-21",
+    "url": "https://github.com/payflow-demo/payflow/pull/70",
+    "files": ["webhooks_service/handler.py"],
+    "body": "Stripe retries webhooks, and we processed some twice.\n\nDecision: Payment webhooks must be idempotent, keyed by the provider event id stored in payments-db.\nWhy: Providers retry deliveries, and duplicate processing re-applied payment state changes.\nAffects: webhooks_service, payments-db, webhooks_service/handler.py",
+    "comments": []
+  },
+  {
+    "id": "a41b7d0",
+    "type": "commit",
+    "title": "feat(webhooks): store provider event ids for dedupe (MR-70)",
+    "author": "priya",
+    "reviewers": [],
+    "date": "2025-03-21",
+    "url": "https://github.com/payflow-demo/payflow/commit/a41b7d0",
+    "files": ["webhooks_service/handler.py", "webhooks_service/migrations/004_event_ids.sql"],
+    "body": "Refs MR-70.",
+    "comments": []
+  }
+]

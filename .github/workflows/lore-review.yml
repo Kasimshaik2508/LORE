@@ -1,0 +1,23 @@
+# Blocks a pull request that conflicts with a recorded engineering decision.
+name: LORE review
+on: pull_request
+jobs:
+  lore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m lore ingest data/sample_repo
+      - name: Review the PR diff against project memory
+        env:
+          ASI1_API_KEY: ${{ secrets.ASI1_API_KEY }}
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
+          python -m lore review --diff pr.diff --strict
+      - name: Tests
+        run: python -m pytest -q

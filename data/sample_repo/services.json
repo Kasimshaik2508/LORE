@@ -1,0 +1,11 @@
+{
+  "services": {
+    "payments_api": {"owner": "dana", "depends_on": ["payments-db", "authentication_service"], "paths": ["payments_api/"]},
+    "ledger_service": {"owner": "priya", "depends_on": ["payments-db"], "paths": ["ledger_service/"]},
+    "webhooks_service": {"owner": "priya", "depends_on": ["payments-db", "payments_api"], "paths": ["webhooks_service/"]},
+    "reporting_service": {"owner": "alex", "depends_on": ["payments-db"], "paths": ["reporting_service/"]},
+    "authentication_service": {"owner": "lee", "depends_on": ["users-db"], "paths": ["auth_service/"]},
+    "payments-db": {"owner": "sam", "kind": "datastore", "depends_on": [], "paths": []},
+    "users-db": {"owner": "lee", "kind": "datastore", "depends_on": [], "paths": []}
+  }
+}
