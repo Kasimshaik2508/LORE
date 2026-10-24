@@ -1,5 +1,7 @@
 # LORE — Living Organizational Record Engine
 
+![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
+![tag:hackathon](https://img.shields.io/badge/hackathon-5F43F1)
 ![domain:engineering](https://img.shields.io/badge/engineering-memory-7c5cff)
 ![tech:uagents](https://img.shields.io/badge/uAgents-chat_protocol-1f9d8b)
 

@@ -1,5 +1,10 @@
 # LORE — Living Organizational Record Engine
 
+![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
+![tag:hackathon](https://img.shields.io/badge/hackathon-5F43F1)
+
+Built for **Fetch-A-Thon 3.0** · Innovation Lab category.
+
 **An agent network on Fetch.ai that remembers why your team built things the way it did, and stops you from repeating old mistakes.**
 
 New developers can read the code, but they can't read the history behind it. Why PostgreSQL and not MongoDB? Why is token verification so slow? Which services break if I touch this database? LORE turns merge requests, review comments, incidents, commits and docs into **evidence-backed engineering memory**, links it in a knowledge graph, and checks new changes against it. You use all of it from **ASI:One** chat.
