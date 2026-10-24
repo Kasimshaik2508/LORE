@@ -3,8 +3,9 @@
 FROM python:3.12-slim
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Only what the agents need (no dashboard). uv resolves in seconds where pip backtracks.
+COPY requirements-agent.txt ./
+RUN pip install --no-cache-dir uv && uv pip install --system --no-cache -r requirements-agent.txt
 COPY . .
 
 ENV PYTHONUNBUFFERED=1 \

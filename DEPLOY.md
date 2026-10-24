@@ -16,6 +16,20 @@ This keeps the Mac awake while LORE runs and restarts LORE if it crashes. Logs a
 Keep the charger in and the lid **open**: closing the lid still puts a Mac to sleep.
 If the lid must close, run `sudo pmset -a disablesleep 1`, and run `sudo pmset -a disablesleep 0` afterwards to undo it.
 
+## Option A2: Docker on a Mac (what the demo machine runs)
+
+```bash
+brew install colima docker && colima start --cpu 2 --memory 2
+docker build -t lore .
+docker run -d --name lore --restart unless-stopped \
+  -e LORE_SEED="$(cat data/.agent_seed)" -e LORE_DB=/app/state/lore.db \
+  -v lore-state:/app/state -p 127.0.0.1:8000:8000 lore
+brew services start colima        # Docker, and so LORE, come back after a reboot or login
+```
+
+`docker logs -f lore` shows the agents; `docker restart lore` restarts them. The `lore-state`
+volume keeps memories and the audit log across restarts. The Mac must still stay on, awake and online.
+
 ## Option B: the cloud (Railway, from this GitHub repo)
 
 1. Copy your agent seed so the cloud agent keeps the **same address**:
